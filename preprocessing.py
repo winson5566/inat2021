@@ -40,8 +40,7 @@ def random_crop(image,
                 area_range=[0.08, 1],
                 min_object_covered=0.5,
                 max_attempts=100,
-                seed=0):
-
+                seed=42):
   bbox = tf.constant([0.0, 0.0, 1.0, 1.0], dtype=tf.float32, shape=[1, 1, 4])
   bbox_begin, bbox_size, _ = tf.image.sample_distorted_bounding_box(
       tf.shape(image),
