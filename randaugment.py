@@ -22,7 +22,6 @@ RandAugment Reference: https://arxiv.org/abs/1909.13719
 import inspect
 import math
 import tensorflow as tf
-from tensorflow_addons import image as contrib_image
 from absl import flags
 
 
@@ -183,6 +182,40 @@ def posterize(image, bits):
   shift = 8 - bits
   return tf.bitwise.left_shift(tf.bitwise.right_shift(image, shift), shift)
 
+def transform_by_matrix(image, transform_matrix, replace):
+  # Add alpha channel for masking invalid areas
+  image = wrap(image)
+  image_shape = tf.shape(image)
+  output = tf.raw_ops.ImageProjectiveTransformV3(
+      images=tf.expand_dims(image, 0),
+      transforms=tf.reshape(transform_matrix, [1, 8]),
+      output_shape=image_shape[:2],
+      interpolation="BILINEAR"
+  )
+  image = tf.squeeze(output, 0)
+  return unwrap(image, replace)
+
+def get_rotation_matrix(radians):
+  cos_theta = tf.math.cos(radians)
+  sin_theta = tf.math.sin(radians)
+  return [cos_theta, -sin_theta, 0.0,
+          sin_theta,  cos_theta, 0.0,
+          0.0, 0.0]
+
+def get_translation_matrix(dx, dy):
+  return [1.0, 0.0, dx,
+          0.0, 1.0, dy,
+          0.0, 0.0]
+
+def get_shear_x_matrix(level):
+  return [1.0, level, 0.0,
+          0.0, 1.0, 0.0,
+          0.0, 0.0]
+
+def get_shear_y_matrix(level):
+  return [1.0, 0.0, 0.0,
+          level, 1.0, 0.0,
+          0.0, 0.0]
 
 def rotate(image, degrees, replace):
   '''Rotates the image by degrees either clockwise or counterclockwise.
@@ -198,50 +231,61 @@ def rotate(image, degrees, replace):
   Returns:
     The rotated version of image.
   '''
-  # Convert from degrees to radians.
-  degrees_to_radians = math.pi / 180.0
-  radians = degrees * degrees_to_radians
+  # # Convert from degrees to radians.
+  # degrees_to_radians = math.pi / 180.0
+  # radians = degrees * degrees_to_radians
+  #
+  # # In practice, we should randomize the rotation degrees by flipping
+  # # it negatively half the time, but that's done on 'degrees' outside
+  # # of the function.
+  # image = contrib_image.rotate(wrap(image), radians)
 
-  # In practice, we should randomize the rotation degrees by flipping
-  # it negatively half the time, but that's done on 'degrees' outside
-  # of the function.
-  image = contrib_image.rotate(wrap(image), radians)
-  return unwrap(image, replace)
+  radians = degrees * math.pi / 180.0
+  return transform_by_matrix(image, get_rotation_matrix(radians), replace)
 
-
+# def translate_x(image, pixels, replace):
+#   '''Equivalent of PIL Translate in X dimension.'''
+#   image = contrib_image.translate(wrap(image), [-pixels, 0])
+#   return unwrap(image, replace)
+#
+#
+# def translate_y(image, pixels, replace):
+#   '''Equivalent of PIL Translate in Y dimension.'''
+#   image = contrib_image.translate(wrap(image), [0, -pixels])
+#   return unwrap(image, replace)
 def translate_x(image, pixels, replace):
-  '''Equivalent of PIL Translate in X dimension.'''
-  image = contrib_image.translate(wrap(image), [-pixels, 0])
-  return unwrap(image, replace)
-
+  return transform_by_matrix(image, get_translation_matrix(-pixels, 0), replace)
 
 def translate_y(image, pixels, replace):
-  '''Equivalent of PIL Translate in Y dimension.'''
-  image = contrib_image.translate(wrap(image), [0, -pixels])
-  return unwrap(image, replace)
+  return transform_by_matrix(image, get_translation_matrix(0, -pixels), replace)
 
+
+# def shear_x(image, level, replace):
+#   '''Equivalent of PIL Shearing in X dimension.'''
+#   # Shear parallel to x axis is a projective transform
+#   # with a matrix form of:
+#   # [1  level
+#   #  0  1].
+#   image = contrib_image.transform(
+#       wrap(image), [1., level, 0., 0., 1., 0., 0., 0.])
+#   return unwrap(image, replace)
+#
+#
+# def shear_y(image, level, replace):
+#   '''Equivalent of PIL Shearing in Y dimension.'''
+#   # Shear parallel to y axis is a projective transform
+#   # with a matrix form of:
+#   # [1  0
+#   #  level  1].
+#   image = contrib_image.transform(
+#       wrap(image), [1., 0., 0., level, 1., 0., 0., 0.])
+#   return unwrap(image, replace)
 
 def shear_x(image, level, replace):
-  '''Equivalent of PIL Shearing in X dimension.'''
-  # Shear parallel to x axis is a projective transform
-  # with a matrix form of:
-  # [1  level
-  #  0  1].
-  image = contrib_image.transform(
-      wrap(image), [1., level, 0., 0., 1., 0., 0., 0.])
-  return unwrap(image, replace)
-
+  return transform_by_matrix(image, get_shear_x_matrix(level), replace)
 
 def shear_y(image, level, replace):
-  '''Equivalent of PIL Shearing in Y dimension.'''
-  # Shear parallel to y axis is a projective transform
-  # with a matrix form of:
-  # [1  0
-  #  level  1].
-  image = contrib_image.transform(
-      wrap(image), [1., 0., 0., level, 1., 0., 0., 0.])
-  return unwrap(image, replace)
-
+  return transform_by_matrix(image, get_shear_y_matrix(level), replace)
 
 def autocontrast(image):
   '''Implements Autocontrast function from PIL using TF ops.

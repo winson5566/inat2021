@@ -38,7 +38,7 @@ def get_default_hparams():
   )
 
 def generate_optimizer(hparams):
-  optimizer = tf.keras.optimizers.SGD(lr=hparams.lr, momentum=hparams.momentum)
+  optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=hparams.lr, momentum=hparams.momentum)
 
   return optimizer
 

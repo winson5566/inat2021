@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 import utils
 
@@ -25,18 +24,33 @@ def distort_color(image, seed=None):
 
   return tf.clip_by_value(image, 0.0, 1.0)
 
+# def random_rotation(image, deg=20, seed=None):
+#   rotation_theta = utils.deg2rad(deg)
+#
+#   random_deg = tf.random.uniform(
+#     shape=[1],
+#     minval=-rotation_theta,
+#     maxval=rotation_theta,
+#     seed=seed)
+#
+#   image = tfa.image.rotate(image, random_deg, interpolation='BILINEAR')
+#
+#   return image
+
 def random_rotation(image, deg=20, seed=None):
-  rotation_theta = utils.deg2rad(deg)
+  rotation_factor = deg / 360.0  # Convert degrees to fraction of full rotation
 
-  random_deg = tf.random.uniform(
-    shape=[1],
-    minval=-rotation_theta,
-    maxval=rotation_theta,
-    seed=seed)
+  random_rotate_layer = tf.keras.layers.RandomRotation(
+      factor=(-rotation_factor, rotation_factor),
+      fill_mode='reflect',
+      interpolation='bilinear',
+      seed=seed
+  )
 
-  image = tfa.image.rotate(image, random_deg, interpolation='BILINEAR')
-
-  return image
+  # Expand dims to make shape (1, H, W, C) for layer
+  image = tf.expand_dims(image, axis=0)
+  image = random_rotate_layer(image)
+  return tf.squeeze(image, axis=0)
 
 def distort_image_with_simpleaugment(image, seed=None):
 
