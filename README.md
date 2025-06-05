@@ -24,6 +24,12 @@ python dataset_tools/create_inat2021_tf_records_new.py \
 ```
 ```bash
 python dataset_tools/create_inat2021_tf_records_new.py \
+  --annotations_file=inat2021/train_mini.json \
+  --dataset_base_dir=inat2021 \
+  --output_dir=inat2021/tfrecords/inat_train.record
+```
+```bash
+python dataset_tools/create_inat2021_tf_records_new.py \
   --annotations_file=inat2021/val.json \
   --dataset_base_dir=inat2021 \
   --output_dir=inat2021/tfrecords/inat_val.record
@@ -38,9 +44,9 @@ python dataset_tools/create_inat2021_tf_records_new.py \
 
 To train a classifier use the script `main.py`. As long as our final submission has two training stages, you can use the script `multi_stage_train.py`:
 ```bash
-python multi_stage_train.py --training_files=PATH_TO_BE_CONFIGURED/inat_train.record-?????-of-02240 \
+python multi_stage_train.py --training_files=inat2021/tfrecords/inat_train.record-?????-of-02240 \
     --num_training_instances=2686843 \
-    --validation_files=PATH_TO_BE_CONFIGURED/inat_val.record-?????-of-00084 \
+    --validation_files=inat2021/tfrecords/inat_val.record-?????-of-00084 \
     --num_validation_instances=100000 \
     --num_classes=10000 \
     --model_name=efficientnet-b3 \
